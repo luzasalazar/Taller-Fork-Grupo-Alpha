@@ -1,10 +1,10 @@
 /**************************************************************************************************
-    Pontificia Universidad Javeriana
-Asignatura: Sistemas Operativos
-Autores: Roberth Mendez, Gabriel Jaramillo, Viviana Gómez, Luz Salazar, Guden Silva.
-Fecha: Abril 2025
-Temas: pipe, fork, procesos padre e hijos, uso de llamadas al sistema.
-**************************************************************************************************/
+ *    Pontificia Universidad Javeriana
+ * Asignatura: Sistemas Operativos
+ * Autores: Roberth Mendez, Gabriel Jaramillo, Viviana Gómez, Luz Salazar, Guden Silva.
+ * Fecha: Abril 2025
+ * Temas: pipe, fork, procesos padre e hijos, uso de llamadas al sistema.
+ **************************************************************************************************/
 
 #include <stdlib.h> //Libreria para memoria dinamica y funciones como malloc, free, exit, atoi.
 #include <stdio.h> //Libreria para el uso de funciones de entrada y salida (E/S)
@@ -13,9 +13,9 @@ Temas: pipe, fork, procesos padre e hijos, uso de llamadas al sistema.
 #include <sys/wait.h> //Libreria para el uso de la función wait()
 
 /*
-* Definición de estrucutra para un vector dinamico
-* que permite almacenar datos de cualquier tipo.
-*/
+ * Definición de estrucutra para un vector dinamico
+ * que permite almacenar datos de cualquier tipo.
+ */
 typedef struct vectorDinamico{
     int capacidad; //Capacidad maxima del vector
     int totalElementos; //Numero de elementos en el vector
@@ -28,7 +28,7 @@ void leerFichero(char *nombreArchivo, vectorDinamico *vector, int capacidadVecto
 int sumarVector(vectorDinamico *vector);
 void freeVector(vectorDinamico *vector);
 
-/**
+/*
  * Función principal en la que:
  * 1. Se verifica argumentos de linea de comandos
  * 2. Se inicializa dos vectores dinamicos
@@ -50,74 +50,23 @@ int main(int argc, char *argv[]) {
     int n1 = atoi(argv[1]); // Capacidad para el primer vector dinamico
     int n2 = atoi(argv[3]); // Capacidad para el segundo vector dinamico
 
-
     vectorDinamico vector1; //Creación primer vector dinamico
     vectorInicio(&vector1, n1); //Inicializar primer vector dinamico
 
     vectorDinamico vector2; //Creación segundo vector dinamico
     vectorInicio(&vector2, n2); //Inicializar segundo vector dinamico
 
-     //Cargar datos desde archivos a los vectores dinamicos
+    //Cargar datos desde archivos a los vectores dinamicos
     leerFichero(argv[2], &vector1, n1); //Primer archivo se carga a vector1
-    leerFichero(argv[4], &vector2, n2);//Segundo archivo se carga a vector2
+    leerFichero(argv[4], &vector2, n2); //Segundo archivo se carga a vector2
 
-    int pipefd[2]; //Crear el pipe para la comunicación entre procesos (leer y escribir)
+    int pipePrincipal[2]; //Crear el pipe para la comunicación entre procesos (leer y escribir)
 
     //Verificación de la creación correcta del pipe (si fallo retorna -1)
-    if (pipe(pipefd) == -1) {
+    if (pipe(pipePrincipal) == -1) {
         perror("Error al crear el pipe");
         return 1;
     }
-
-    //Creación de proceso hijo para calcular la suma de vector1
-    // y asignación de su PID retornada por el fork (0)
-    pid_t pidSumaA = fork();
-
-    //Verificación de la creación correcta del hijo (si fallo retorna -1)
-    if (pidSumaA < 0) {
-        perror("Error al crear el proceso hijo");
-        return 1;
-    }
-
-    //Codigo a ejecutar por el hijo ( si es el hijo su PID es 0)
-    if (pidSumaA == 0) {
-
-        int sumaA = sumarVector(&vector1); //Llamada a función para la suma del vector1 y almacenar resultado
-        close(pipefd[0]); // Cierra lectura
-
-        write(pipefd[1], &sumaA, sizeof(int)); //Envía resultado de la suma al pipe
-        close(pipefd[1]); // Cierra escritura
-
-        exit(0);
-
-    }
-
-    wait(NULL); // Espera a que el proceso hijo de sumaA termine antes de continuar
-    
-    //Creación de proceso hijo para calcular la suma de vector2
-    // y asignación de su PID retornada por el fork (0)
-    pid_t pidSumaB = fork(); 
-
-    //Verificación de la creación correcta del hijo (si fallo retorna -1)
-    if (pidSumaB < 0) {
-        perror("Error al crear el proceso hijo");
-        return 1;
-    }
-
-    //Codigo a ejecutar por el hijo ( si es el hijo su PID es 0)
-    if (pidSumaB == 0) { 
-        
-        int sumaB = sumarVector(&vector2); //Llamada a función para la suma del vector2 y almacenar resultado
-        close(pipefd[0]); // Cierra lectura
-
-        write(pipefd[1], &sumaB, sizeof(int)); //Envía resultado de la suma al pipe
-        close(pipefd[1]); // Cierra escritura
-
-        exit(0);
-
-    }
-
-    wait(NULL); // Espera a que el proceso hijo de sumaB termine antes de continuar
 
     //Creación de proceso hijo para calcular la suma total de ambos vectores
     // y asignación de su PID retornada por el fork (0)
@@ -129,30 +78,88 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    //Codigo a ejecutar por el hijo ( si es el hijo su PID es 0)
+    //Codigo a ejecutar por el hijo sumaTotal (si es el hijo su PID es 0)
     if (pidSumaTotal == 0) {
 
-        int sumaTotal = sumarVector(&vector1) + sumarVector(&vector2); //Calcular suma total y almacenar el resultado
-        close(pipefd[0]); // Cierra lectura
+        int pipeInterno[2]; // Pipe interno entre sumaA, y sumaB y sumaTotal
 
-        write(pipefd[1], &sumaTotal, sizeof(int)); // Envía resultado de la suma al pipe
-        close(pipefd[1]); // Cierra escritura
+        // Verificación de la creación correcta del pipe interno (si fallo retorna -1)
+        if (pipe(pipeInterno) == -1) {
+            perror("Error al crear pipe interno");
+            exit(1);
+        }
 
-        exit(0);
+        //Creación de proceso hijo para calcular la suma de vector1
+        pid_t pidSumaA = fork();
+
+        //Verificación de la creación correcta del hijo (si fallo retorna -1)
+        if (pidSumaA < 0) {
+            perror("Error al crear el proceso hijo sumaA");
+            exit(1);
+        }
+
+        // Ejecutar el código del hijo sumaA (si es el hijo su PID es 0)
+        if (pidSumaA == 0) {
+
+            int sumaA = sumarVector(&vector1); // Calcula la suma de vector1
+            close(pipeInterno[0]); // Cierra lectura del pipe interno
+            write(pipeInterno[1], &sumaA, sizeof(int)); // Escribe la suma en el pipe interno
+            close(pipeInterno[1]); // Cierra escritura del pipe interno
+            exit(0); // Termina el proceso hijo sumaA
+
+        }
+
+        wait(NULL); // Espera a que el proceso sumaA termine
+
+        //Creación de proceso hijo para calcular la suma de vector2
+        pid_t pidSumaB = fork();
+
+        //Verificación de la creación correcta del hijo (si fallo retorna -1)
+        if (pidSumaB < 0) {
+            perror("Error al crear el proceso hijo sumaB");
+            exit(1);
+        }
+
+        // Ejecutar el código del hijo sumaB (si es el hijo su PID es 0)
+        if (pidSumaB == 0) {
+
+            int sumaB = sumarVector(&vector2); // Calcula la suma de vector2
+            close(pipeInterno[0]); // Cierra lectura del pipe interno
+            write(pipeInterno[1], &sumaB, sizeof(int)); // Escribe la suma en el pipe interno
+            close(pipeInterno[1]); // Cierra escritura del pipe interno
+            exit(0); // Termina el proceso hijo sumaB
+
+        }
+
+        wait(NULL); // Espera a que el proceso sumaB termine
+        close(pipeInterno[1]); // Cierra escritura
+
+        int sumaA, sumaB; 
+        read(pipeInterno[0], &sumaA, sizeof(int)); // Lee la sumaA del pipe interno
+        read(pipeInterno[0], &sumaB, sizeof(int)); // Lee la sumaB del pipe interno
+        close(pipeInterno[0]); // Cierra lectura
+
+        int sumaTotal = sumaA + sumaB; // Calcula la suma total de ambos vectores
+
+        // Enviar sumaA, sumaB y sumaTotal al proceso padre
+        close(pipePrincipal[0]); // Cierra lectura
+        write(pipePrincipal[1], &sumaA, sizeof(int)); // Escribe la sumaA en el pipe principal
+        write(pipePrincipal[1], &sumaB, sizeof(int)); // Escribe la sumaB en el pipe principal
+        write(pipePrincipal[1], &sumaTotal, sizeof(int)); // Escribe la sumaTotal en el pipe principal
+        close(pipePrincipal[1]); // Cierra escritura
+
+        exit(0); // Termina el proceso hijo sumaTotal
 
     }
 
-    wait(NULL); // Espera a que el proceso hijo de sumaTotal termine antes de continuar
-    
-    
-    int sumaTotal, sumaA, sumaB; // Proceso Padre lee los resultados de los procesos hijos
-    close(pipefd[1]); // Cierra escritura
+    wait(NULL); // Espera a sumaTotal
+    close(pipePrincipal[1]); // Cierra escritura
 
-    //Lee los valores enviados por los procesos hijos
-    read(pipefd[0], &sumaA, sizeof(int)); //Lee el resultado de la suma de vector1
-    read(pipefd[0], &sumaB, sizeof(int)); //Lee el resultado de la suma de vector2
-    read(pipefd[0], &sumaTotal, sizeof(int)); //Lee el resultado de la suma total
-    close(pipefd[0]); // Cierra lectura
+    int sumaA, sumaB, sumaTotal;
+    read(pipePrincipal[0], &sumaA, sizeof(int));  // Lee la sumaA del pipe principal
+    read(pipePrincipal[0], &sumaB, sizeof(int)); // Lee la sumaB del pipe principal
+    read(pipePrincipal[0], &sumaTotal, sizeof(int)); // Lee la sumaTotal del pipe principal
+    close(pipePrincipal[0]); // Cierra lectura
 
     //Imprime los resultados
     printf("Suma Total: %d\n", sumaTotal);
@@ -166,7 +173,6 @@ int main(int argc, char *argv[]) {
     return 0;
 
 }
-
 
 /*
  * Inicializa un vector dinámico con la capacidad especificada
