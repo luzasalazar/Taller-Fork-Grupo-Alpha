@@ -1,6 +1,6 @@
 # Taller Fork(), Sistemas Operativos
 
-Se presenta el taller fork() realizado para la materia "sistemas operativos".
+Se presentan los talleres realizados para la materia "sistemas operativos".
 
 # Integrantes
 
