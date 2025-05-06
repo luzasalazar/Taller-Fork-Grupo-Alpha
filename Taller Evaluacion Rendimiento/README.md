@@ -88,10 +88,6 @@ Para cada ejecución se obtiene:
 
 ---
 
-## 📂 Estructura del Repositorio
-
-
-
 ## 🧳 Cómo Ejecutar
 
 ```bash
